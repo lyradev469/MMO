@@ -17,6 +17,8 @@ import type { JobId } from "@/features/mmo/types";
 import { JOB_DEFINITIONS } from "@/features/mmo/constants";
 
 const STORAGE_KEY = "chainquest_session";
+const MMO_SERVER = process.env.NEXT_PUBLIC_MMO_SERVER_URL ?? "https://mmo-production-479a.up.railway.app";
+
 
 interface StoredSession {
   playerId: string;
@@ -29,6 +31,7 @@ export function MiniApp() {
   const { data: user } = useFarcasterUser();
   const [session, setSession] = useState<StoredSession | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [registerError, setRegisterError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("world");
 
   // ----------------------------------------------------------
@@ -40,8 +43,11 @@ export function MiniApp() {
     if (stored) {
       try {
         const parsed = JSON.parse(stored) as StoredSession;
-        if (parsed.playerId && parsed.authToken) {
+        // Validate session has all required fields — clear stale/old format sessions
+        if (parsed.playerId && parsed.authToken && parsed.jobId && parsed.fid) {
           setSession(parsed);
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
         }
       } catch {
         localStorage.removeItem(STORAGE_KEY);
@@ -54,20 +60,19 @@ export function MiniApp() {
   // ----------------------------------------------------------
 
   const registerPlayer = useCallback(async (jobId: JobId) => {
-    if (!user) return;
     setIsRegistering(true);
 
+    // Use real Farcaster identity if available, otherwise guest mode
+    const fid = user?.fid ?? Math.floor(Math.random() * 900000) + 100000;
+    const username = user?.username ?? `guest_${fid}`;
+    const displayName = user?.display_name ?? user?.username ?? `Guest ${fid}`;
+    const pfpUrl = user?.pfp_url ?? "";
+
     try {
-      const res = await fetch("/api/mmo/player/register", {
+      const res = await fetch(`${MMO_SERVER}/mmo/player/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fid: user.fid,
-          username: user.username ?? `fid_${user.fid}`,
-          displayName: user.display_name ?? user.username ?? `Player ${user.fid}`,
-          pfpUrl: user.pfp_url ?? "",
-          jobId,
-        }),
+        body: JSON.stringify({ fid, username, displayName, pfpUrl, jobId }),
       });
 
       const data = await res.json();
@@ -77,14 +82,14 @@ export function MiniApp() {
         playerId: data.playerId,
         authToken: data.token,
         jobId,
-        fid: user.fid,
+        fid,
       };
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newSession));
       setSession(newSession);
     } catch (err) {
       console.error("Registration failed:", err);
-    } finally {
+      setRegisterError(String(err));
       setIsRegistering(false);
     }
   }, [user]);
@@ -108,9 +113,26 @@ export function MiniApp() {
 
   if (isRegistering) {
     return (
-      <div className="h-dvh flex flex-col items-center justify-center bg-[#0a0a1a] gap-4">
+      <div className="h-dvh flex flex-col items-center justify-center bg-[#0a0a1a] gap-4 p-6">
         <div className="text-5xl animate-pulse">⚔️</div>
         <p className="text-amber-400 font-bold">Creating your character...</p>
+        <p className="text-slate-500 text-xs">Connecting to Railway server...</p>
+      </div>
+    );
+  }
+
+  if (registerError) {
+    return (
+      <div className="h-dvh flex flex-col items-center justify-center bg-[#0a0a1a] gap-4 p-6">
+        <div className="text-5xl">❌</div>
+        <p className="text-red-400 font-bold text-lg">Registration Failed</p>
+        <p className="text-slate-400 text-sm text-center">{registerError}</p>
+        <button
+          className="mt-2 px-6 py-3 rounded-xl bg-amber-500 text-black font-black active:scale-95"
+          onClick={() => setRegisterError(null)}
+        >
+          Try Again
+        </button>
       </div>
     );
   }
@@ -133,10 +155,20 @@ export function MiniApp() {
           <span className="text-lg font-black text-white">
             Chain<span className="text-amber-400">Quest</span>
           </span>
-          {gameState.connected && (
+          {gameState.connected ? (
             <span className="text-xs bg-green-900/60 text-green-400 px-1.5 py-0.5 rounded-full border border-green-800">
               ● LIVE
             </span>
+          ) : (
+            <button
+              className="text-xs bg-red-900/60 text-red-400 px-1.5 py-0.5 rounded-full border border-red-800 active:scale-95"
+              onClick={() => {
+                localStorage.removeItem(STORAGE_KEY);
+                setSession(null);
+              }}
+            >
+              ● OFFLINE — Reset
+            </button>
           )}
         </div>
 

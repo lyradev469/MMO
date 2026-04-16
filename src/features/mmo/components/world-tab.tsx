@@ -163,23 +163,38 @@ export function WorldTab({ gameState, currentPlayer, actions, isConnecting, reco
   // Render
   // ----------------------------------------------------------
 
-  if (isConnecting) {
+  if (isConnecting || !gameState.connected) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-[#0a0a1a] gap-4">
-        <div className="text-5xl">⚔️</div>
-        <p className="text-amber-400 font-bold text-lg">Connecting to ChainQuest...</p>
-        {reconnectIn > 0 && (
-          <p className="text-slate-400 text-sm">Reconnecting in {reconnectIn}s</p>
+      <div className="flex-1 flex flex-col items-center justify-center bg-[#0a0a1a] gap-4 p-6">
+        <div className="text-5xl animate-pulse">⚔️</div>
+        {isConnecting ? (
+          <>
+            <p className="text-amber-400 font-bold text-lg">Connecting to ChainQuest...</p>
+            {reconnectIn > 0 && (
+              <p className="text-slate-400 text-sm">Reconnecting in {reconnectIn}s</p>
+            )}
+            <div className="flex gap-1">
+              {[0,1,2].map(i => (
+                <div
+                  key={i}
+                  className="w-2 h-2 rounded-full bg-amber-500 animate-bounce"
+                  style={{ animationDelay: `${i * 0.15}s` }}
+                />
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-red-400 font-bold text-lg">Server Offline</p>
+            <p className="text-slate-400 text-sm text-center">
+              Could not connect to the game server.{"\n"}
+              {reconnectIn > 0 ? `Retrying in ${reconnectIn}s...` : "Retrying..."}
+            </p>
+            <p className="text-slate-600 text-xs text-center mt-2">
+              Tap ● OFFLINE in the header to reset your session if this persists.
+            </p>
+          </>
         )}
-        <div className="flex gap-1">
-          {[0,1,2].map(i => (
-            <div
-              key={i}
-              className="w-2 h-2 rounded-full bg-amber-500 animate-bounce"
-              style={{ animationDelay: `${i * 0.15}s` }}
-            />
-          ))}
-        </div>
       </div>
     );
   }

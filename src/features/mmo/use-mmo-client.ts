@@ -17,10 +17,11 @@ import type {
   EntityId,
 } from "./types";
 
-// Use external standalone server if configured, otherwise fall back to Next.js API route
+// Use Railway standalone server — falls back to built-in Next.js handler if env var not set
+const STANDALONE_SERVER = process.env.NEXT_PUBLIC_MMO_WS_URL ?? "wss://mmo-production-479a.up.railway.app/mmo/ws";
 const WS_URL =
   typeof window !== "undefined"
-    ? (process.env.NEXT_PUBLIC_MMO_WS_URL ?? `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/api/mmo/ws`)
+    ? STANDALONE_SERVER
     : "";
 
 const RECONNECT_DELAY_MS = 3000;

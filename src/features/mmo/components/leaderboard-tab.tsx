@@ -18,6 +18,8 @@ interface ServerStats {
   uptime: number;
 }
 
+const MMO_SERVER = process.env.NEXT_PUBLIC_MMO_SERVER_URL ?? "https://mmo-production-479a.up.railway.app";
+
 export function LeaderboardTab() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [serverStats, setServerStats] = useState<ServerStats | null>(null);
@@ -28,8 +30,8 @@ export function LeaderboardTab() {
     const load = async () => {
       try {
         const [lbRes, statsRes] = await Promise.all([
-          fetch("/api/mmo/leaderboard?limit=20"),
-          fetch("/api/mmo/server-stats"),
+          fetch(`${MMO_SERVER}/mmo/leaderboard?limit=20`),
+          fetch(`${MMO_SERVER}/mmo/server-stats`),
         ]);
         const lbData = await lbRes.json();
         const statsData = await statsRes.json();

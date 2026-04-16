@@ -46,12 +46,16 @@ import type { WSMessage, InputEvent } from "../src/features/mmo/types";
 // Config
 // ----------------------------------------------------------
 
-const PORT = parseInt(process.env.MMO_PORT ?? "8080");
+// Railway injects PORT env var — must use it or requests won't reach the app
+const PORT = parseInt(process.env.PORT ?? process.env.MMO_PORT ?? "8080");
 const CORS_ORIGIN = process.env.CORS_ORIGIN ?? "*";
 const SERVER_SECRET = process.env.MMO_SERVER_SECRET ?? "";
 
 // Combat log (shared in-process)
 const combatLog: unknown[] = [];
+
+// Human player token store — maps token → playerId
+const humanTokens = new Map<string, string>();
 
 // ----------------------------------------------------------
 // Start the game tick loop
@@ -65,10 +69,11 @@ console.log(`[ChainQuest] MMO engine started`);
 // ----------------------------------------------------------
 
 const server = http.createServer((req, res) => {
-  // CORS headers
-  res.setHeader("Access-Control-Allow-Origin", CORS_ORIGIN);
+  // CORS — allow all origins (Farcaster mini apps run from various domains)
+  res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Max-Age", "86400");
 
   if (req.method === "OPTIONS") {
     res.writeHead(204);
@@ -148,7 +153,10 @@ async function handleRoute(
       pfpUrl ?? "",
       jobId ?? "novice",
     );
-    const token = `player_${player.id}_${Math.random().toString(36).slice(2)}`;
+    // Deterministic token — survives server restarts since it's derived from stable player.id
+    // player.id is stable for a given FID (registerPlayer is idempotent by FID)
+    const token = `player_${player.id}`;
+    humanTokens.set(token, player.id);
     sendJSON(res, 200, { ok: true, playerId: player.id, token });
     return;
   }
@@ -267,18 +275,32 @@ wss.on("connection", (ws: WebSocket, req: http.IncomingMessage) => {
 
       if (msg.type === "auth") {
         const payload = msg.payload as { playerId: string; token: string };
-        const player = getPlayerByToken(payload.token);
 
-        // Also allow human players (token format: player_<id>_<rand>)
-        const isHuman = payload.token.startsWith("player_") && payload.playerId === playerId;
+        // Check agent token (for AI agents)
+        const agentPlayer = getPlayerByToken(payload.token);
+        // Check human token — deterministic format: "player_<playerId>"
+        // Also re-hydrate the map on first use after a restart
+        let humanPlayerId = humanTokens.get(payload.token);
+        if (!humanPlayerId && payload.token.startsWith("player_")) {
+          // Token format is player_<playerId> — extract and verify player exists
+          const derivedId = payload.token.slice("player_".length);
+          // Re-register player from token (they already exist in players map)
+          const allPlayers = getAllPlayers();
+          const existing = allPlayers.find(p => p.id === derivedId);
+          if (existing) {
+            humanTokens.set(payload.token, derivedId);
+            humanPlayerId = derivedId;
+          }
+        }
+        const resolvedPlayerId = agentPlayer?.id ?? humanPlayerId ?? null;
 
-        if (player || isHuman) {
+        if (resolvedPlayerId) {
           authenticated = true;
           clearTimeout(authTimeout);
-          connectPlayer(payload.playerId, send);
-          console.log(`[WS] Authenticated: ${payload.playerId}`);
+          connectPlayer(resolvedPlayerId, send);
+          console.log(`[WS] Authenticated: ${resolvedPlayerId}`);
         } else {
-          send({ type: "error", payload: { message: "Invalid credentials" }, timestamp: Date.now() });
+          send({ type: "error", payload: { message: "Invalid token — please re-register" }, timestamp: Date.now() });
           ws.close();
         }
         return;
