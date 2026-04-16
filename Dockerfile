@@ -1,21 +1,21 @@
 FROM node:22-alpine
 WORKDIR /app
 
-# Copy only what the standalone server needs
+# Copy server package.json and install deps first (layer cache)
 COPY server/package.json ./server/package.json
-COPY server/tsconfig.json ./server/tsconfig.json
-COPY server/index.ts ./server/index.ts
+RUN cd server && npm install
 
-# Copy the MMO engine source (no browser/Next.js deps)
+# Copy standalone server entry
+COPY server/index.ts ./server/index.ts
+COPY server/tsconfig.json ./server/tsconfig.json
+
+# Copy MMO engine — must match import paths in server/index.ts (../src/features/mmo/*)
 COPY src/features/mmo/types.ts ./src/features/mmo/types.ts
 COPY src/features/mmo/constants.ts ./src/features/mmo/constants.ts
 COPY src/features/mmo/combat-engine.ts ./src/features/mmo/combat-engine.ts
 COPY src/features/mmo/mmo-server.ts ./src/features/mmo/mmo-server.ts
 
-# Install server deps only
-WORKDIR /app/server
-RUN npm install
-
 EXPOSE 8080
 
-CMD ["npx", "tsx", "index.ts"]
+# Run from /app so relative paths resolve: server/index.ts → ../src/features/mmo/
+CMD ["node_modules/.bin/tsx", "server/index.ts"]

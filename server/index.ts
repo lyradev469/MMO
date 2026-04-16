@@ -38,6 +38,7 @@ import {
   getServerStats,
   connectPlayer,
   disconnectPlayer,
+  getAllPlayers,
 } from "../src/features/mmo/mmo-server";
 
 import type { WSMessage, InputEvent } from "../src/features/mmo/types";
