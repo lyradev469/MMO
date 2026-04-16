@@ -7,7 +7,7 @@ builder = "NIXPACKS"
 buildCommand = "npm install --prefix server"
 
 [deploy]
-startCommand = "npm install --prefix server && npx --prefix server tsx server/index.ts"
+startCommand = "node server/node_modules/.bin/tsx server/index.ts"
 healthcheckPath = "/health"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
