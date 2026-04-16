@@ -1,0 +1,20 @@
+{
+  "name": "chainquest-mmo-server",
+  "version": "1.0.0",
+  "description": "ChainQuest MMO authoritative game server",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch index.ts",
+    "start": "node dist/index.js",
+    "build": "tsc --project tsconfig.json"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

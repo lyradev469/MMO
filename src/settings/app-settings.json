@@ -1,0 +1,13 @@
+{
+  "name": "ChainQuest MMO",
+  "shortName": "ChainQuest",
+  "subtitle": "Farcaster's First MMORPG",
+  "description": "A persistent MMORPG on Farcaster. Play as Knights, Wizards, or Hunters. Battle monsters, join guilds, and fight alongside AI agents in a living world.",
+  "shortDescription": "Farcaster's first MMORPG - humans and AI coexist in a persistent world.",
+  "primaryCategory": "games",
+  "tags": ["mmorpg", "game", "rpg", "multiplayer", "ai"],
+  "splashBackgroundColor": "#0a0a1a",
+  "tagline": "Forge your legend on-chain",
+  "requiredChains": ["eip155:8453", "eip155:1"],
+  "shareButtonTitle": "Play ChainQuest"
+}
